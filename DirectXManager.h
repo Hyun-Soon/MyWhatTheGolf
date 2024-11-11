@@ -13,9 +13,19 @@
 
 struct DX11Data
 {
-	Microsoft::WRL::ComPtr<ID3D11Device>		device;
-	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
-	Microsoft::WRL::ComPtr<IDXGISwapChain>		swapChain;
+	UINT numQualityLevel = 0;
+
+	Microsoft::WRL::ComPtr<ID3D11Device>			device;
+	Microsoft::WRL::ComPtr<ID3D11DeviceContext>		context;
+	Microsoft::WRL::ComPtr<IDXGISwapChain>			swapChain;
+	Microsoft::WRL::ComPtr<ID3D11Texture2D>			backBuffer;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView>	renderTargetView;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState>	rasterizerState;
+	Microsoft::WRL::ComPtr<ID3D11Texture2D>			depthStencilBuffer;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilView>	depthStencilView;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
+
+	D3D11_VIEWPORT viewport;
 };
 
 class DirectXManager

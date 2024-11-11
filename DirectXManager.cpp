@@ -19,13 +19,13 @@ bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& win
 	D3D_FEATURE_LEVEL featureLevel;
 
 	// check if support 4X MSAA
-	UINT numQualityLevels;
+	// UINT numQualityLevels;
 	// device->CheckMultisampleQualityLevels(DXGI_FORMAT_R8G8B8A8_UNORM, 4, &numQualityLevels);
 	// if (numQualityLevels <= 0)
 	//{
 	//	std::cout << "MSAA not supported." << std::endl;
 	// }
-	numQualityLevels = 0; // MSAA turn off
+	// numQualityLevels = 0; // MSAA turn off
 
 	DXGI_SWAP_CHAIN_DESC swapChainDesc;
 	ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
@@ -41,10 +41,10 @@ bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& win
 	swapChainDesc.Windowed = TRUE;								  // windowed/full-screen mode
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH; // allow full-screen switching
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	if (numQualityLevels > 0)
+	if (dxData.numQualityLevel > 0)
 	{
 		swapChainDesc.SampleDesc.Count = 4; // how many multisamples
-		swapChainDesc.SampleDesc.Quality = numQualityLevels - 1;
+		swapChainDesc.SampleDesc.Quality = dxData.numQualityLevel - 1;
 	}
 	else
 	{
@@ -76,35 +76,28 @@ bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& win
 		return false;
 	}
 
-	// Create RenderTargetView
-	Microsoft::WRL::ComPtr<ID3D11Texture2D>		   backBuffer;
-	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
-	dxData.swapChain->GetBuffer(0, IID_PPV_ARGS(backBuffer.GetAddressOf())); // 0 : index
-	if (backBuffer)
+	//  Create RenderTargetView
+	dxData.swapChain->GetBuffer(0, IID_PPV_ARGS(dxData.backBuffer.GetAddressOf())); // 0 : index
+	if (dxData.backBuffer)
 	{
-		HRESULT hr = dxData.device->CreateRenderTargetView(backBuffer.Get(), nullptr, renderTargetView.GetAddressOf());
+		HRESULT hr = dxData.device->CreateRenderTargetView(dxData.backBuffer.Get(), nullptr, dxData.renderTargetView.GetAddressOf());
 
 		if (FAILED(hr))
 			std::cout << "CreateRenderTargetView() failed." << std::endl;
-		// D3D11_TEXTURE2D_DESC td;
-		// backBuffer->GetDesc(&td);
-		// td.SampleDesc.Count = 1;
-		// td.SampleDesc.Quality = 0;
-		// td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		// td.MiscFlags = 0;
 	}
+	else
+		std::cout << "backBuffer is nullptr." << std::endl;
 
 	// Set Viewport
-	D3D11_VIEWPORT viewport;
-	ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
-	viewport.TopLeftX = 0;
-	viewport.TopLeftY = 0;
-	viewport.Width = res.width;
-	viewport.Height = res.height;
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f; // modify later
+	ZeroMemory(&dxData.viewport, sizeof(D3D11_VIEWPORT));
+	dxData.viewport.TopLeftX = 0;
+	dxData.viewport.TopLeftY = 0;
+	dxData.viewport.Width = res.width;
+	dxData.viewport.Height = res.height;
+	dxData.viewport.MinDepth = 0.0f;
+	dxData.viewport.MaxDepth = 1.0f; // modify later
 
-	dxData.context->RSSetViewports(1, &viewport);
+	dxData.context->RSSetViewports(1, &dxData.viewport);
 
 	// Create a rasterizer state
 	D3D11_RASTERIZER_DESC rasterizerDesc;
@@ -114,8 +107,7 @@ bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& win
 	rasterizerDesc.FrontCounterClockwise = FALSE;
 	rasterizerDesc.DepthClipEnable = TRUE;
 
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizerState;
-	dxData.device->CreateRasterizerState(&rasterizerDesc, rasterizerState.GetAddressOf());
+	dxData.device->CreateRasterizerState(&rasterizerDesc, dxData.rasterizerState.GetAddressOf());
 
 	// Create depth buffer
 	D3D11_TEXTURE2D_DESC depthStencilBufferDesc;
@@ -124,10 +116,10 @@ bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& win
 	depthStencilBufferDesc.MipLevels = 1;
 	depthStencilBufferDesc.ArraySize = 1;
 	depthStencilBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	if (numQualityLevels > 0)
+	if (dxData.numQualityLevel > 0)
 	{
 		depthStencilBufferDesc.SampleDesc.Count = 4;
-		depthStencilBufferDesc.SampleDesc.Quality = numQualityLevels - 1;
+		depthStencilBufferDesc.SampleDesc.Quality = dxData.numQualityLevel - 1;
 	}
 	else
 	{
@@ -139,38 +131,36 @@ bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& win
 	depthStencilBufferDesc.CPUAccessFlags = 0;
 	depthStencilBufferDesc.MiscFlags = 0;
 
-	Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilBuffer;
-
-	if (FAILED(dxData.device->CreateTexture2D(&depthStencilBufferDesc, 0, depthStencilBuffer.GetAddressOf())))
+	// depthStencilBuffer
+	if (FAILED(dxData.device->CreateTexture2D(&depthStencilBufferDesc, 0, dxData.depthStencilBuffer.GetAddressOf())))
 	{
 		OutputDebugString(L"CreateTexture2D() failed.\n");
 		return false;
 	}
 
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
-	if (FAILED(dxData.device->CreateDepthStencilView(depthStencilBuffer.Get(), 0, depthStencilView.GetAddressOf())))
+	// depthStencilView
+	if (FAILED(dxData.device->CreateDepthStencilView(dxData.depthStencilBuffer.Get(), 0, dxData.depthStencilView.GetAddressOf())))
 	{
 		OutputDebugString(L"CreateDepthStencilView() failed.\n");
 		return false;
 	}
 
 	// Create Depth stencil state
-	// TODO :: depthStencilDesc must be handled somewhere
-	D3D11_DEPTH_STENCIL_DESC						depthStencilDesc;
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
+	D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
+
 	ZeroMemory(&depthStencilDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
 	depthStencilDesc.DepthEnable = true;
 	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK::D3D11_DEPTH_WRITE_MASK_ALL;
 	depthStencilDesc.DepthFunc = D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS_EQUAL;
-	if (FAILED(dxData.device->CreateDepthStencilState(&depthStencilDesc, depthStencilState.GetAddressOf())))
+	if (FAILED(dxData.device->CreateDepthStencilState(&depthStencilDesc, dxData.depthStencilState.GetAddressOf())))
 	{
 		OutputDebugString(L"CreateDepthStencilState() failed.\n");
 		return false;
 	}
 
-	dxData.context->OMSetRenderTargets(1, renderTargetView.GetAddressOf(), depthStencilView.Get());
+	dxData.context->OMSetRenderTargets(1, dxData.renderTargetView.GetAddressOf(), dxData.depthStencilView.Get());
 	float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	dxData.context->ClearRenderTargetView(renderTargetView.Get(), clearColor);
+	dxData.context->ClearRenderTargetView(dxData.renderTargetView.Get(), clearColor);
 
 	return true;
 }
