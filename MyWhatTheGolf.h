@@ -12,6 +12,8 @@ public:
 	const Microsoft::WRL::ComPtr<ID3D11Device>&		   GetDevice() const;
 	const Microsoft::WRL::ComPtr<ID3D11DeviceContext>& GetContext() const;
 	void											   SwitchBackBuffer();
+	void											   Render();
+	DX11Data&										   getDxData();
 
 private:
 	Resolution mResolution;

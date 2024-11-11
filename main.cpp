@@ -50,7 +50,11 @@ int main()
 
 	VertexConstantData vertexConstantData;
 	vertexConstantData.model = DirectX::SimpleMath::Matrix::CreateTranslation(0.0f, 0.0f, 0.0f);
-	vertexConstantData.view = DirectX::SimpleMath::Matrix(); // default
+	vertexConstantData.view = DirectX::SimpleMath::Matrix::CreateLookAt(
+		DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f),
+		DirectX::SimpleMath::Vector3(0.0f, 0.0f, 1.0f),
+		DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f));
+	// vertexConstantData.view = DirectX::SimpleMath::Matrix();
 	vertexConstantData.projection = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(30.0f), float(width) / height, 1.0f, 10.0f);
 
 	/*PixelConstantData pixelConstantData;
@@ -70,11 +74,11 @@ int main()
 
 	D3D11_SUBRESOURCE_DATA initData = { 0 };
 	initData.pSysMem = &vertexConstantData;
-	/*initData.SysMemPitch = 0;
-	initData.SysMemSlicePitch = 0;*/
+	initData.SysMemPitch = 0;
+	initData.SysMemSlicePitch = 0;
 
 	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexConstantBuffer;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> pixelConstantBuffer;
+	// Microsoft::WRL::ComPtr<ID3D11Buffer> pixelConstantBuffer;
 
 	HRESULT hr = app.GetDevice()->CreateBuffer(&cbDesc, &initData, vertexConstantBuffer.GetAddressOf());
 
@@ -92,12 +96,18 @@ int main()
 		return 2;
 	}*/
 
+	// Update Constant Buffer
+	D3D11_MAPPED_SUBRESOURCE ms;
+	app.GetContext()->Map(vertexConstantBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &vertexConstantData, sizeof(vertexConstantData)); // ms.pData : GPU's memory that CPU can access because it's mapped
+	app.GetContext()->Unmap(vertexConstantBuffer.Get(), NULL);
+
 	// Create Vertex Buffer
-	DirectX::SimpleMath::Vector3 vertex1 = { 0.5f, 0.5f, 2.0f };
+	DirectX::SimpleMath::Vector3 vertex1 = { 0.2f, 0.2f, 0.9f };
 	DirectX::SimpleMath::Vector3 color1 = { 1.0f, 0.0f, 0.0f };
-	DirectX::SimpleMath::Vector3 vertex2 = { -0.5f, 0.5f, 2.0f };
+	DirectX::SimpleMath::Vector3 vertex2 = { -0.2f, 0.2f, 0.9f };
 	DirectX::SimpleMath::Vector3 color2 = { 0.0f, 1.0f, 0.0f };
-	DirectX::SimpleMath::Vector3 vertex3 = { -0.5f, -0.5f, 2.0f };
+	DirectX::SimpleMath::Vector3 vertex3 = { -0.2f, -0.2f, 0.9f };
 	DirectX::SimpleMath::Vector3 color3 = { 0.0f, 0.0f, 1.0f };
 
 	std::vector<Vertex>	  vertices = { { vertex1, color1 }, { vertex2, color2 }, { vertex3, color3 } };
@@ -144,13 +154,18 @@ int main()
 		return 3;
 	}
 
+	std::vector<D3D11_INPUT_ELEMENT_DESC> inputElementDescVector = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+
 	// Create VertexShader and InputLayout
-	Microsoft::WRL::ComPtr<ID3DBlob> vertexBlob;
-	Microsoft::WRL::ComPtr<ID3DBlob> pixelBlob;
-	Microsoft::WRL::ComPtr<ID3DBlob> errorBlob;
-	ID3D11VertexShader*				 vertexShader;
-	ID3D11PixelShader*				 pixelShader;
-	UINT							 compileFlags = 0;
+	Microsoft::WRL::ComPtr<ID3DBlob>		   vertexBlob;
+	Microsoft::WRL::ComPtr<ID3DBlob>		   pixelBlob;
+	Microsoft::WRL::ComPtr<ID3DBlob>		   errorBlob;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader>  pixelShader;
+	UINT									   compileFlags = 0;
 
 #if defined(DEBUG) || defined(_DEBUG)
 	compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
@@ -174,8 +189,13 @@ int main()
 		}
 	}
 
-	app.GetDevice()->CreateVertexShader(vertexBlob->GetBufferPointer(), vertexBlob->GetBufferSize(), NULL, &vertexShader);
+	app.GetDevice()->CreateVertexShader(vertexBlob->GetBufferPointer(), vertexBlob->GetBufferSize(), NULL, vertexShader.GetAddressOf());
 
+	// Create Input Layout
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> layout;
+	app.GetDevice()->CreateInputLayout(inputElementDescVector.data(), UINT(inputElementDescVector.size()), vertexBlob->GetBufferPointer(), vertexBlob->GetBufferSize(), layout.GetAddressOf());
+
+	// Create Pixel Shader
 	hr = D3DCompileFromFile(L"PixelShader.hlsl", 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", compileFlags, 0, &pixelBlob, &errorBlob);
 
 	if (FAILED(hr))
@@ -194,37 +214,51 @@ int main()
 		}
 	}
 
-	app.GetDevice()->CreatePixelShader(pixelBlob->GetBufferPointer(), pixelBlob->GetBufferSize(), NULL, &pixelShader);
+	app.GetDevice()->CreatePixelShader(pixelBlob->GetBufferPointer(), pixelBlob->GetBufferSize(), NULL, pixelShader.GetAddressOf());
 
-	std::vector<D3D11_INPUT_ELEMENT_DESC> inputElementDescVector = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 } };
+	app.GetContext()->IASetInputLayout(layout.Get());
+	// Render
+	DX11Data& dxData = app.getDxData();
+	float	  clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	app.GetContext()->ClearRenderTargetView(dxData.renderTargetView.Get(), clearColor);
+	app.GetContext()->ClearDepthStencilView(dxData.depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-	ID3D11InputLayout* layout;
-	app.GetDevice()->CreateInputLayout(inputElementDescVector.data(), 2, vertexBlob->GetBufferPointer(), vertexBlob->GetBufferSize(), &layout);
-	app.GetContext()->IASetInputLayout(layout);
+	app.GetContext()->OMSetRenderTargets(1, dxData.renderTargetView.GetAddressOf(), dxData.depthStencilView.Get());
+	app.GetContext()->OMSetDepthStencilState(dxData.depthStencilState.Get(), 0);
 
-	app.GetContext()->VSSetShader(vertexShader, 0, 0);
-	app.GetContext()->PSSetShader(pixelShader, 0, 0);
+	app.GetContext()->RSSetState(dxData.rasterizerState.Get());
+
+	app.GetContext()->VSSetShader(vertexShader.Get(), 0, 0);
+	app.GetContext()->PSSetShader(pixelShader.Get(), 0, 0);
+
+	app.GetContext()->VSSetConstantBuffers(0, 1, vertexConstantBuffer.GetAddressOf());
 
 	// select which vertex buffer to display
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
+
 	app.GetContext()->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
 	app.GetContext()->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-	app.GetContext()->IASetPrimitiveTopology(
-		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	app.GetContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	app.GetContext()->DrawIndexed(UINT(indices.size()), 0, 0);
 
-	// MSG msg = { 0 };
-	// while (WM_QUIT != msg.message)
-	//{
-	//	PeekMessage(&msg, app.GetWindow(), 0, 0, PM_REMOVE);
-
-	//}
 	app.SwitchBackBuffer();
 
-	while (1)
-		;
+	MSG msg = { 0 };
+	while (WM_QUIT != msg.message)
+	{
+		if (PeekMessage(&msg, app.GetWindow(), 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		else
+		{
+		}
+	}
+
+	// while (1)
+	//	;
 
 	return 0;
 }

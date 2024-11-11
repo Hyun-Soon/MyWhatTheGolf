@@ -158,9 +158,5 @@ bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& win
 		return false;
 	}
 
-	dxData.context->OMSetRenderTargets(1, dxData.renderTargetView.GetAddressOf(), dxData.depthStencilView.Get());
-	float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	dxData.context->ClearRenderTargetView(dxData.renderTargetView.Get(), clearColor);
-
 	return true;
 }

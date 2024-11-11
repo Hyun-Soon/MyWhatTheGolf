@@ -29,3 +29,12 @@ void MyWhatTheGolf::SwitchBackBuffer()
 {
 	mDxData.swapChain->Present(1, 0);
 }
+
+void MyWhatTheGolf::Render()
+{
+}
+
+DX11Data& MyWhatTheGolf::getDxData()
+{
+	return mDxData;
+}
