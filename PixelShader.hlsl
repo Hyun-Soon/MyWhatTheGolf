@@ -7,5 +7,5 @@
 
 float4 main(PixelShaderInput input) : SV_Target
 {
-    return float4(input.color, 1);
+    return float4(input.color, 1.0);
 }

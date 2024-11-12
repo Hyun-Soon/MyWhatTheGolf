@@ -13,10 +13,11 @@ PixelShaderInput main(VertexShaderInput input)
     PixelShaderInput output;
     
     float4 pos = float4(input.posModel, 1.0f);
+    //float4x4 mvp = mul(projection, mul(view, world));
     pos = mul(pos, world);
     pos = mul(pos, view);
     pos = mul(pos, projection);
-    
+   
     output.posProj = pos;
     output.color = input.color;
     

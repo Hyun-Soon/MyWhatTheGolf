@@ -50,12 +50,30 @@ int main()
 
 	VertexConstantData vertexConstantData;
 	vertexConstantData.model = DirectX::SimpleMath::Matrix::CreateTranslation(0.0f, 0.0f, 0.0f);
-	vertexConstantData.view = DirectX::SimpleMath::Matrix::CreateLookAt(
+
+	//RENDERED
+	vertexConstantData.view = DirectX::XMMatrixLookToLH(
 		DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f),
 		DirectX::SimpleMath::Vector3(0.0f, 0.0f, 1.0f),
 		DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f));
-	// vertexConstantData.view = DirectX::SimpleMath::Matrix();
+
+	//NOT RENDERED
+	//vertexConstantData.view = DirectX::SimpleMath::Matrix::CreateLookAt(
+	//	DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f),
+	//	DirectX::SimpleMath::Vector3(0.0f, 0.0f, 1.0f),
+	//	DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f));
+
+	//RENDERED
+	//vertexConstantData.view = DirectX::XMMatrixLookAtLH(
+	//	DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f),
+	//	DirectX::SimpleMath::Vector3(0.0f, 0.0f, 1.0f),
+	//	DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f));
+
 	vertexConstantData.projection = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(30.0f), float(width) / height, 1.0f, 10.0f);
+
+	vertexConstantData.model = vertexConstantData.model.Transpose();
+	vertexConstantData.view = vertexConstantData.view.Transpose();
+	vertexConstantData.projection = vertexConstantData.projection.Transpose();
 
 	/*PixelConstantData pixelConstantData;
 	pixelConstantData.color[0] = { 1.0f, 0.0f, 0.0f, 1.0f };
@@ -88,14 +106,6 @@ int main()
 		return 1;
 	}
 
-	/*initData.pSysMem = &pixelConstantData;
-	hr = app.GetDevice()->CreateBuffer(&cbDesc, &initData, pixelConstantBuffer.GetAddressOf());
-	if (FAILED(hr))
-	{
-		OutputDebugString(L"CreateConstantBuffer() failed.\n");
-		return 2;
-	}*/
-
 	// Update Constant Buffer
 	D3D11_MAPPED_SUBRESOURCE ms;
 	app.GetContext()->Map(vertexConstantBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
@@ -103,15 +113,20 @@ int main()
 	app.GetContext()->Unmap(vertexConstantBuffer.Get(), NULL);
 
 	// Create Vertex Buffer
-	DirectX::SimpleMath::Vector3 vertex1 = { 0.2f, 0.2f, 0.9f };
-	DirectX::SimpleMath::Vector3 color1 = { 1.0f, 0.0f, 0.0f };
-	DirectX::SimpleMath::Vector3 vertex2 = { -0.2f, 0.2f, 0.9f };
-	DirectX::SimpleMath::Vector3 color2 = { 0.0f, 1.0f, 0.0f };
-	DirectX::SimpleMath::Vector3 vertex3 = { -0.2f, -0.2f, 0.9f };
-	DirectX::SimpleMath::Vector3 color3 = { 0.0f, 0.0f, 1.0f };
+	DirectX::SimpleMath::Vector3 vertex1 = { 0.2f, 0.2f, 1.3f };
+	//DirectX::SimpleMath::Vector3 vertex1 = { -0.3f, -0.3f, -1.0f };
+	DirectX::SimpleMath::Vector3 color1 = { 1.0f, 0.0f, 0.0f }; // r
+
+	DirectX::SimpleMath::Vector3 vertex2 = { -0.2f, 0.2f, 1.3f };
+	//DirectX::SimpleMath::Vector3 vertex2 = { -0.3f, 0.3f, -1.0f };
+	DirectX::SimpleMath::Vector3 color2 = { 0.0f, 1.0f, 0.0f }; // g
+
+	DirectX::SimpleMath::Vector3 vertex3 = { -0.2f, -0.2f, 1.3f };
+	//DirectX::SimpleMath::Vector3 vertex3 = { 0.3f, 0.3f, -1.0f };
+	DirectX::SimpleMath::Vector3 color3 = { 0.0f, 0.0f, 1.0f }; // b
 
 	std::vector<Vertex>	  vertices = { { vertex1, color1 }, { vertex2, color2 }, { vertex3, color3 } };
-	std::vector<uint32_t> indices = { 0, 1, 2 };
+	std::vector<uint32_t> indices = { 0, 2, 1 };
 
 	D3D11_BUFFER_DESC vbDesc;
 	ZeroMemory(&vbDesc, sizeof(D3D11_BUFFER_DESC));
@@ -217,32 +232,6 @@ int main()
 	app.GetDevice()->CreatePixelShader(pixelBlob->GetBufferPointer(), pixelBlob->GetBufferSize(), NULL, pixelShader.GetAddressOf());
 
 	app.GetContext()->IASetInputLayout(layout.Get());
-	// Render
-	DX11Data& dxData = app.getDxData();
-	float	  clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	app.GetContext()->ClearRenderTargetView(dxData.renderTargetView.Get(), clearColor);
-	app.GetContext()->ClearDepthStencilView(dxData.depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-	app.GetContext()->OMSetRenderTargets(1, dxData.renderTargetView.GetAddressOf(), dxData.depthStencilView.Get());
-	app.GetContext()->OMSetDepthStencilState(dxData.depthStencilState.Get(), 0);
-
-	app.GetContext()->RSSetState(dxData.rasterizerState.Get());
-
-	app.GetContext()->VSSetShader(vertexShader.Get(), 0, 0);
-	app.GetContext()->PSSetShader(pixelShader.Get(), 0, 0);
-
-	app.GetContext()->VSSetConstantBuffers(0, 1, vertexConstantBuffer.GetAddressOf());
-
-	// select which vertex buffer to display
-	UINT stride = sizeof(Vertex);
-	UINT offset = 0;
-
-	app.GetContext()->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
-	app.GetContext()->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-	app.GetContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	app.GetContext()->DrawIndexed(UINT(indices.size()), 0, 0);
-
-	app.SwitchBackBuffer();
 
 	MSG msg = { 0 };
 	while (WM_QUIT != msg.message)
@@ -254,6 +243,31 @@ int main()
 		}
 		else
 		{
+			// Render
+			DX11Data& dxData = app.getDxData();
+			float	  clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+			app.GetContext()->ClearRenderTargetView(dxData.renderTargetView.Get(), clearColor);
+			app.GetContext()->ClearDepthStencilView(dxData.depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+			app.GetContext()->OMSetRenderTargets(1, dxData.renderTargetView.GetAddressOf(), dxData.depthStencilView.Get());
+			app.GetContext()->OMSetDepthStencilState(dxData.depthStencilState.Get(), 0);
+
+			app.GetContext()->RSSetState(dxData.rasterizerState.Get());
+
+			app.GetContext()->VSSetShader(vertexShader.Get(), 0, 0);
+			app.GetContext()->PSSetShader(pixelShader.Get(), 0, 0);
+
+			app.GetContext()->VSSetConstantBuffers(0, 1, vertexConstantBuffer.GetAddressOf());
+
+			// select which vertex buffer to display
+			UINT stride = sizeof(Vertex);
+			UINT offset = 0;
+
+			app.GetContext()->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
+			app.GetContext()->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+			app.GetContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			app.GetContext()->DrawIndexed(UINT(indices.size()), 0, 0);
+			app.SwitchBackBuffer();
 		}
 	}
 
