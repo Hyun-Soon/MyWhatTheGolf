@@ -8,18 +8,19 @@ cbuffer VertexConstantBuffer : register(b0)
     matrix projection;
 };
 
-PixelShaderInput main(VertexShaderInput input)
+float4 main(float3 input : POSITION) : SV_Position
 {
-    PixelShaderInput output;
+    //PixelShaderInput output;
     
-    float4 pos = float4(input.posModel, 1.0f);
+    float scale = 0.1;
+    float4 pos = float4(input * scale, 1.0f);
     //float4x4 mvp = mul(projection, mul(view, world));
     pos = mul(pos, world);
     pos = mul(pos, view);
     pos = mul(pos, projection);
    
-    output.posProj = pos;
-    output.color = input.color;
+    //output.posProj = pos;
+    //output.color = input.color;
     
-    return output;
+    return pos;
 }

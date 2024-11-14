@@ -103,7 +103,7 @@ bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& win
 	D3D11_RASTERIZER_DESC rasterizerDesc;
 	ZeroMemory(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
 	rasterizerDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID; // D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
-	rasterizerDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_BACK;
+	rasterizerDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_BACK; // D3D11_CULL_BACK
 	rasterizerDesc.FrontCounterClockwise = FALSE;
 	rasterizerDesc.DepthClipEnable = TRUE;
 

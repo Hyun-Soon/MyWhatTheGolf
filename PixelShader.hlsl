@@ -5,7 +5,7 @@
     
 //};
 
-float4 main(PixelShaderInput input) : SV_Target
+float4 main(float4 input : SV_Position) : SV_Target
 {
-    return float4(input.color, 1.0);
+    return float4(1.0, 1.0, 1.0, 1.0);
 }
