@@ -1,5 +1,4 @@
 #pragma once
-#pragma once
 
 #include <d3dcommon.h>
 #include <d3d11.h>
@@ -26,6 +25,7 @@ struct DX11Data
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
 
 	D3D11_VIEWPORT viewport;
+
 };
 
 class DirectXManager

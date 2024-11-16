@@ -134,8 +134,10 @@
     <ClCompile Include="WindowManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AssetLoader.h" />
     <ClInclude Include="DirectXManager.h" />
     <ClInclude Include="MyWhatTheGolf.h" />
+    <ClInclude Include="Object.h" />
     <ClInclude Include="WindowManager.h" />
   </ItemGroup>
   <ItemGroup>

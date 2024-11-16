@@ -1,42 +1,30 @@
 #include "MyWhatTheGolf.h"
+#include "AssetLoader.h"
+#include "Object.h"
 
-#include <vector>
-#include <directxtk/SimpleMath.h>
-#include <string>
 #include <d3dcompiler.h>
+#include <algorithm>
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
 
-struct Vertex
-{
-	DirectX::SimpleMath::Vector3 position;
-	DirectX::SimpleMath::Vector3 color;
-};
+// TODO :: 1. SimpleMath -> XM
 
-struct MeshData
-{
-	std::vector<Vertex>	  vertices;
-	std::vector<uint32_t> indices;
-	std::string			  textureFilename;
-};
 
-struct VertexConstantData
-{
-	DirectX::SimpleMath::Matrix model;
-	DirectX::SimpleMath::Matrix invTranspose;
-	DirectX::SimpleMath::Matrix view;
-	DirectX::SimpleMath::Matrix projection;
-};
-static_assert((sizeof(VertexConstantData) % 16) == 0, "Vertex Constant Buffer size must be 16-byte aligned.");
 
-struct PixelConstantData
-{
-	DirectX::SimpleMath::Vector4 color[3];
-	DirectX::SimpleMath::Vector4 padding;
-};
-static_assert((sizeof(PixelConstantData) % 16 == 0), "Pixel Constant Buffer size must be 16-byte aligned.");
+//struct MeshData
+//{
+//	std::vector<Vertex>	  vertices;
+//	std::vector<uint32_t> indices;
+//	std::string			  textureFilename;
+//};
+
+
+
+//struct PixelConstantData
+//{
+//	DirectX::SimpleMath::Vector4 color[3];
+//	DirectX::SimpleMath::Vector4 padding;
+//};
+//static_assert((sizeof(PixelConstantData) % 16 == 0), "Pixel Constant Buffer size must be 16-byte aligned.");
 
 // 디버깅 위해서 main 함수 사용. 위 함수 사용하려면 sln -> properties -> Linker -> System -> Subsystem -> Windows로 설정
 // int main()
@@ -53,37 +41,19 @@ int main()
 		return 1;
 
 	VertexConstantData vertexConstantData;
-	vertexConstantData.model = DirectX::SimpleMath::Matrix::CreateTranslation(0.0f, 30.0f, 60.0f); // * DirectX::SimpleMath::Matrix::CreateRotationZ(DirectX::XMConvertToRadians(90.0f));
+	vertexConstantData.model = DirectX::SimpleMath::Matrix::CreateTranslation(0.0f, 30.0f, 60.0f); //DirectX::SimpleMath::Matrix::CreateRotationY(DirectX::XMConvertToRadians(120.0f)) * 
 
-	//RENDERED
+	//Vertex Constant Data
 	vertexConstantData.view = DirectX::XMMatrixLookToLH(
 		DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f),
 		DirectX::SimpleMath::Vector3(0.0f, 0.0f, 1.0f),
 		DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f));
-
-	//RENDERED
-	//vertexConstantData.view = DirectX::XMMatrixLookAtLH(
-	//	DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f),
-	//	DirectX::SimpleMath::Vector3(0.0f, 0.0f, 1.0f),
-	//	DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f));
-
-	//NOT RENDERED
-	//vertexConstantData.view = DirectX::SimpleMath::Matrix::CreateLookAt(
-	//	DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f),
-	//	DirectX::SimpleMath::Vector3(0.0f, 0.0f, 1.0f),
-	//	DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f));
-
 
 	vertexConstantData.projection = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(60.0f), float(width) / height, 1.0f, 100.0f);
 
 	vertexConstantData.model = vertexConstantData.model.Transpose();
 	vertexConstantData.view = vertexConstantData.view.Transpose();
 	vertexConstantData.projection = vertexConstantData.projection.Transpose();
-
-	/*PixelConstantData pixelConstantData;
-	pixelConstantData.color[0] = { 1.0f, 0.0f, 0.0f, 1.0f };
-	pixelConstantData.color[1] = { 0.0f, 1.0f, 0.0f, 1.0f };
-	pixelConstantData.color[2] = { 0.0f, 0.0f, 1.0f, 1.0f };*/
 
 	// Create Constant Buffer
 	D3D11_BUFFER_DESC cbDesc;
@@ -118,87 +88,19 @@ int main()
 	app.GetContext()->Unmap(vertexConstantBuffer.Get(), NULL);
 
 
-
-	////// Create Vertex Buffer
-	//DirectX::SimpleMath::Vector3 vertex1 = { -50.0f, -50.0f, -50.0f };
-	////DirectX::SimpleMath::Vector3 vertex1 = { -0.3f, -0.3f, -1.0f };
-	//DirectX::SimpleMath::Vector3 color1 = { 1.0f, 0.0f, 0.0f }; // r
-
-	//DirectX::SimpleMath::Vector3 vertex2 = { 50.0f, 50.0f, -50.0f };
-	////DirectX::SimpleMath::Vector3 vertex2 = { -0.3f, 0.3f, -1.0f };
-	//DirectX::SimpleMath::Vector3 color2 = { 0.0f, 1.0f, 0.0f }; // g
-
-	//DirectX::SimpleMath::Vector3 vertex3 = { -50.0f, 50.0f, -50.0f };
-	////DirectX::SimpleMath::Vector3 vertex3 = { 0.3f, 0.3f, -1.0f };
-	//DirectX::SimpleMath::Vector3 color3 = { 0.0f, 0.0f, 1.0f }; // b
-
-	//DirectX::SimpleMath::Vector3 vertex4 = { 50.0f, -50.0f, -50.0f };
-	//DirectX::SimpleMath::Vector3 color4 = { 1.0f, 1.0f, 1.0f }; // w
-
-	//std::vector<Vertex>	  vertices = { { vertex1, color1 }, { vertex2, color2 }, { vertex3, color3 }, { vertex4, color4 } };
-	//std::vector<uint32_t> indices = { 0, 1, 2, 0, 4, 1};
-
-	Assimp::Importer importer;
-	const aiScene*	 scene = importer.ReadFile("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/golf_bat_bin.fbx", aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
-	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
-	{
-		std::cerr << "Error loading model: " << importer.GetErrorString() << std::endl;
-		return -1;
-	}
-
-	std::vector<DirectX::SimpleMath::Vector3> vertices;
-	//std::vector<DirectX::XMFLOAT3> normals;
-	//std::vector<DirectX::XMFLOAT2> uvs;
-	std::vector<unsigned int> indices;
-
-	for (unsigned int i = 0; i < scene->mNumMeshes; i++)
-	{
-		aiMesh* mesh = scene->mMeshes[i];
-		for (unsigned int j = 0; j < mesh->mNumVertices; j++)
-		{
-			aiVector3D pos = mesh->mVertices[j];
-			vertices.push_back(DirectX::SimpleMath::Vector3(pos.x, pos.y, pos.z));
-			
-			//if (mesh->HasNormals())
-			//{
-			//	aiVector3D normal = mesh->mNormals[j];
-			//	normals.push_back(DirectX::XMFLOAT3(normal.x, normal.y, normal.z));
-			//}
-
-			//if (mesh->mTextureCoords[0])
-			//{
-			//	aiVector3D texCoord = mesh->mTextureCoords[0][j];
-			//	uvs.push_back(DirectX::XMFLOAT2(texCoord.x, texCoord.y));
-			//}
-		} 
-
-		for (unsigned int j = 0; j < mesh->mNumFaces; j++)
-		{
-			aiFace face = mesh->mFaces[j];
-			for (unsigned int k = 0; k < face.mNumIndices; k++)
-			{
-				indices.push_back(face.mIndices[k]);
-			}
-		}
-	}
-
-	////debug
-	//std::cout << "size : " << vertices.size() << ", " << indices.size() << '\n';
-	//for (size_t i = 0; i < vertices.size(); i++)
-	//{
-	//	std::cout << "index : " << i << "-> (" << vertices[i].x << ", " << vertices[i].y << ", " << vertices[i].z << ")\n";
-	//}
+	Object golfBat;
+	AssetLoader::Load("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "golf_bat_bin.fbx", golfBat);
 
 	D3D11_BUFFER_DESC vbDesc;
 	ZeroMemory(&vbDesc, sizeof(D3D11_BUFFER_DESC));
 	vbDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	vbDesc.ByteWidth = static_cast<UINT>(sizeof(DirectX::SimpleMath::Vector3) * vertices.size());
+	vbDesc.ByteWidth = static_cast<UINT>(sizeof(Vertex) * golfBat.vertices.size());
 	vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	vbDesc.CPUAccessFlags = 0; // 0 if no CPU access is neccesary
-	vbDesc.StructureByteStride = sizeof(DirectX::SimpleMath::Vector3);
+	vbDesc.StructureByteStride = sizeof(Vertex);
 
 	D3D11_SUBRESOURCE_DATA vertexBufferData = { 0 };
-	vertexBufferData.pSysMem = vertices.data();
+	vertexBufferData.pSysMem = golfBat.vertices.data();
 	vertexBufferData.SysMemPitch = 0;	   // used for 2D or 3D texture
 	vertexBufferData.SysMemSlicePitch = 0; // used for 3D texture
 
@@ -212,13 +114,13 @@ int main()
 
 	D3D11_BUFFER_DESC ibDesc = { 0 };
 	ibDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	ibDesc.ByteWidth = UINT(sizeof(uint32_t) * indices.size());
+	ibDesc.ByteWidth = UINT(sizeof(uint32_t) * golfBat.indices.size());
 	ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	ibDesc.CPUAccessFlags = 0;
 	ibDesc.StructureByteStride = sizeof(uint32_t);
 
 	D3D11_SUBRESOURCE_DATA indexBufferData = { 0 };
-	indexBufferData.pSysMem = indices.data();
+	indexBufferData.pSysMem = golfBat.indices.data();
 	indexBufferData.SysMemPitch = 0;
 	indexBufferData.SysMemSlicePitch = sizeof(uint32_t);
 
@@ -230,13 +132,9 @@ int main()
 		return 3;
 	}
 
-	/*std::vector<D3D11_INPUT_ELEMENT_DESC> inputElementDescVector = {
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-	};*/
-
 	std::vector<D3D11_INPUT_ELEMENT_DESC> inputElementDescVector = {
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 4 * 3,D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 
 	// Create VertexShader and InputLayout
@@ -325,13 +223,13 @@ int main()
 			app.GetContext()->VSSetConstantBuffers(0, 1, vertexConstantBuffer.GetAddressOf());
 
 			// select which vertex buffer to display
-			UINT stride = sizeof(DirectX::SimpleMath::Vector3);
+			UINT stride = sizeof(Vertex);
 			UINT offset = 0;
 
 			app.GetContext()->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
 			app.GetContext()->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 			app.GetContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			app.GetContext()->DrawIndexed(UINT(indices.size()), 0, 0);
+			app.GetContext()->DrawIndexed(UINT(golfBat.indices.size()), 0, 0);
 			app.SwitchBackBuffer();
 		}
 	}

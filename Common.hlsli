@@ -1,11 +1,11 @@
 #ifndef __COMMON_HLSLI__
 #define __COMMON_HLSLI__
 
-//struct VertexShaderInput
-//{
-//    float3 posModel : POSITION;
-//    float3 color : COLOR;
-//};
+struct VertexShaderInput
+{
+    float3 pos : POSITION;
+    float2 color : TEXCOORD;
+};
 
 
 //struct PixelShaderInput
