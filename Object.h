@@ -7,9 +7,6 @@
 #include "AssetLoader.h"
 #include "ShaderData.h"
 
-using VERTEX_TYPE = Vertex;
-using INDEX_TYPE = uint32_t;
-
 class Object
 {
 public:

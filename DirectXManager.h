@@ -6,9 +6,6 @@
 #include "WindowManager.h"
 #include "Object.h"
 
-// debug
-#include <iostream>
-
 struct DX11Data
 {
 	UINT numQualityLevel = 0;
@@ -36,13 +33,20 @@ class DirectXManager
 {
 public:
 	bool Initialize(_In_ const Resolution& res, _In_ const HWND& window);
-	bool CreateDeviceContextAndSwapChain();
 	bool CreateVertexBuffer(Object& obj) const;
 	bool CreateIndexBuffer(Object& obj) const;
 	bool CreateVertexShaderAndInputLayout();
 	bool CreatePixelShader();
 	bool Render(Object& obj);
 
-	// private:
-	DX11Data mDxData;
+private:
+	DX11Data		  mDxData;
+	D3D_FEATURE_LEVEL mFeatureLevel;
+
+	bool createDeviceContextAndSwapChain(_In_ const Resolution& res, _In_ const HWND& window);
+	bool createRenderTargetView();
+	bool createRasterizerState();
+	bool createDepthStencilBuffer(_In_ const Resolution& res);
+	bool createVertexConstantBuffer();
+	void setViewport(_In_ const Resolution& res);
 };

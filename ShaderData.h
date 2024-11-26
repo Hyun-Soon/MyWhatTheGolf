@@ -5,6 +5,9 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+// debug
+#include <iostream>
+
 struct Vertex
 {
 	DirectX::SimpleMath::Vector3 point;
@@ -22,3 +25,7 @@ struct VertexConstantData
 	DirectX::SimpleMath::Matrix invTranspose;
 };
 static_assert((sizeof(VertexConstantData) % 16) == 0, "Vertex Constant Buffer size must be 16-byte aligned.");
+
+using VERTEX_TYPE = Vertex;
+using INDEX_TYPE = uint32_t;
+using VERTEX_CONSTANT_DATA_TYPE = VertexConstantData;

@@ -2,194 +2,24 @@
 
 bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& window)
 {
-	// initDirectX
-	const D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_HARDWARE;
-
-	UINT createDeviceFlags = 0;
-
-#if defined(DEBUG) || defined(_DEBUG) // not executed in release mode
-	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-
-	const D3D_FEATURE_LEVEL featureLevels[3] = {
-		D3D_FEATURE_LEVEL_11_1,
-		D3D_FEATURE_LEVEL_11_0,
-		D3D_FEATURE_LEVEL_9_3
-	};
-	D3D_FEATURE_LEVEL featureLevel;
-
-	// check if support 4X MSAA
-	// UINT numQualityLevels;
-	// device->CheckMultisampleQualityLevels(DXGI_FORMAT_R8G8B8A8_UNORM, 4, &numQualityLevels);
-	// if (numQualityLevels <= 0)
-	//{
-	//	std::cout << "MSAA not supported." << std::endl;
-	// }
-	// numQualityLevels = 0; // MSAA turn off
-
-	DXGI_SWAP_CHAIN_DESC swapChainDesc;
-	ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
-	swapChainDesc.BufferDesc.Width = res.width;
-	swapChainDesc.BufferDesc.Height = res.height;
-	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapChainDesc.BufferCount = 2; // Double-buffering
-	swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
-	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // DXGI_USAGE_SHADER_INPUT : to use input for shader
-	swapChainDesc.OutputWindow = window;
-	swapChainDesc.Windowed = TRUE;								  // windowed/full-screen mode
-	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH; // allow full-screen switching
-	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
-	if (mDxData.numQualityLevel > 0)
-	{
-		swapChainDesc.SampleDesc.Count = 4; // how many multisamples
-		swapChainDesc.SampleDesc.Quality = mDxData.numQualityLevel - 1;
-	}
-	else
-	{
-		swapChainDesc.SampleDesc.Count = 1;
-		swapChainDesc.SampleDesc.Quality = 0;
-	}
-
-	if (FAILED(D3D11CreateDeviceAndSwapChain(
-			0, // Default adapter
-			driverType,
-			0, // No software device
-			createDeviceFlags,
-			featureLevels,
-			1,
-			D3D11_SDK_VERSION,
-			&swapChainDesc,					  // [in, optional]
-			mDxData.swapChain.GetAddressOf(), // [out, optional]
-			mDxData.device.GetAddressOf(),	  // [out, optional]
-			&featureLevel,					  // [out, optional]
-			mDxData.context.GetAddressOf()))) // [out, optional]
-	{
-		OutputDebugString(L"D3D11CreateDeviceAndSwapChain() failed.\n");
+	if (!createDeviceContextAndSwapChain(res, window))
 		return false;
-	}
 
-	if (featureLevel != D3D_FEATURE_LEVEL_11_1)
-	{
-		OutputDebugString(L"D3D Feature Level 11.1 unsupported.\n");
+	if (!createRenderTargetView())
 		return false;
-	}
 
-	//  Create RenderTargetView
-	mDxData.swapChain->GetBuffer(0, IID_PPV_ARGS(mDxData.backBuffer.GetAddressOf())); // 0 : index
-	if (mDxData.backBuffer)
-	{
-		HRESULT hr = mDxData.device->CreateRenderTargetView(mDxData.backBuffer.Get(), nullptr, mDxData.renderTargetView.GetAddressOf());
-
-		if (FAILED(hr))
-		{
-			std::cout << "CreateRenderTargetView() failed." << std::endl;
-			return false;
-		}
-	}
-	else
-		std::cout << "backBuffer is nullptr." << std::endl;
-
-	// Set Viewport
-	ZeroMemory(&mDxData.viewport, sizeof(D3D11_VIEWPORT));
-	mDxData.viewport.TopLeftX = 0;
-	mDxData.viewport.TopLeftY = 0;
-	mDxData.viewport.Width = res.width;
-	mDxData.viewport.Height = res.height;
-	mDxData.viewport.MinDepth = 0.0f;
-	mDxData.viewport.MaxDepth = 1.0f; // temp
-
-	mDxData.context->RSSetViewports(1, &mDxData.viewport);
-
-	// Create a rasterizer state
-	D3D11_RASTERIZER_DESC rasterizerDesc;
-	ZeroMemory(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
-	rasterizerDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID; // D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
-	rasterizerDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_BACK;	 // D3D11_CULL_BACK
-	rasterizerDesc.FrontCounterClockwise = FALSE;
-	rasterizerDesc.DepthClipEnable = TRUE;
-
-	mDxData.device->CreateRasterizerState(&rasterizerDesc, mDxData.rasterizerState.GetAddressOf());
-
-	// Create depth buffer
-	D3D11_TEXTURE2D_DESC depthStencilBufferDesc = { 0 };
-	depthStencilBufferDesc.Width = res.width;
-	depthStencilBufferDesc.Height = res.height;
-	depthStencilBufferDesc.MipLevels = 1;
-	depthStencilBufferDesc.ArraySize = 1;
-	depthStencilBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 24 bits for depth, 8 bits for stencil
-	if (mDxData.numQualityLevel > 0)
-	{
-		depthStencilBufferDesc.SampleDesc.Count = 4;
-		depthStencilBufferDesc.SampleDesc.Quality = mDxData.numQualityLevel - 1;
-	}
-	else
-	{
-		depthStencilBufferDesc.SampleDesc.Count = 1;
-		depthStencilBufferDesc.SampleDesc.Quality = 0;
-	}
-	depthStencilBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	depthStencilBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-	depthStencilBufferDesc.CPUAccessFlags = 0;
-	depthStencilBufferDesc.MiscFlags = 0;
-
-	// depthStencilBuffer
-	if (FAILED(mDxData.device->CreateTexture2D(&depthStencilBufferDesc, 0, mDxData.depthStencilBuffer.GetAddressOf())))
-	{
-		OutputDebugString(L"CreateTexture2D() failed.\n");
+	if (!createRasterizerState())
 		return false;
-	}
 
-	// depthStencilView
-	if (FAILED(mDxData.device->CreateDepthStencilView(mDxData.depthStencilBuffer.Get(), 0, mDxData.depthStencilView.GetAddressOf())))
-	{
-		OutputDebugString(L"CreateDepthStencilView() failed.\n");
+	if (!createDepthStencilBuffer(res))
 		return false;
-	}
 
-	// Create Depth stencil state
-	D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
-	ZeroMemory(&depthStencilDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
-	depthStencilDesc.DepthEnable = true;
-	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK::D3D11_DEPTH_WRITE_MASK_ALL;
-	depthStencilDesc.DepthFunc = D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS_EQUAL;
-	if (FAILED(mDxData.device->CreateDepthStencilState(&depthStencilDesc, mDxData.depthStencilState.GetAddressOf())))
-	{
-		OutputDebugString(L"CreateDepthStencilState() failed.\n");
+	if (!createVertexConstantBuffer())
 		return false;
-	}
 
-	// Create Constant Buffer
-	D3D11_BUFFER_DESC cbDesc;
-	ZeroMemory(&cbDesc, sizeof(D3D11_BUFFER_DESC));
-	cbDesc.ByteWidth = sizeof(VertexConstantData);
-	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	cbDesc.MiscFlags = 0;
-	cbDesc.StructureByteStride = 0;
+	setViewport(res);
 
-	VertexConstantData temp;
-	mDxData.pVertexConstantData = &temp; // not good // to avoid error when create vertex constant buffer
-
-	D3D11_SUBRESOURCE_DATA initData = { 0 };
-	initData.pSysMem = mDxData.pVertexConstantData;
-	initData.SysMemPitch = 0;
-	initData.SysMemSlicePitch = 0;
-
-	HRESULT hr = mDxData.device->CreateBuffer(&cbDesc, &initData, mDxData.vertexConstantBuffer.GetAddressOf());
-	if (FAILED(hr))
-	{
-		OutputDebugString(L"CreateConstantBuffer() failed.\n");
-		return false;
-	}
 	return true;
-}
-
-bool DirectXManager::CreateDeviceContextAndSwapChain()
-{
-	return false;
 }
 
 bool DirectXManager::CreateVertexBuffer(Object& obj) const
@@ -345,15 +175,15 @@ bool DirectXManager::Render(Object& obj)
 	context->PSSetShader(mDxData.pixelShader.Get(), 0, 0);
 
 	mDxData.pVertexConstantData = obj.GetPVertexConstantData();
-	// mDxData.pVertexConstantData->model =
+
 	D3D11_MAPPED_SUBRESOURCE ms;
 	context->Map(mDxData.vertexConstantBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-	memcpy(ms.pData, mDxData.pVertexConstantData, sizeof(VertexConstantData));
+	memcpy(ms.pData, mDxData.pVertexConstantData, sizeof(VERTEX_CONSTANT_DATA_TYPE));
 	context->Unmap(mDxData.vertexConstantBuffer.Get(), NULL);
 	context->VSSetConstantBuffers(0, 1, mDxData.vertexConstantBuffer.GetAddressOf());
 
 	//// select which vertex buffer to display
-	UINT stride = sizeof(Vertex);
+	UINT stride = sizeof(VERTEX_TYPE);
 	UINT offset = 0;
 
 	context->IASetVertexBuffers(0, 1, obj.GetVertexBuffer().GetAddressOf(), &stride, &offset);
@@ -362,4 +192,210 @@ bool DirectXManager::Render(Object& obj)
 	context->DrawIndexed(UINT(obj.GetISize()), 0, 0);
 	mDxData.swapChain->Present(1, 0);
 	return true;
+}
+
+bool DirectXManager::createDeviceContextAndSwapChain(_In_ const Resolution& res, _In_ const HWND& window)
+{
+	const D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_HARDWARE;
+
+	UINT createDeviceFlags = 0;
+
+#if defined(DEBUG) || defined(_DEBUG) // not executed in release mode
+	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+	const D3D_FEATURE_LEVEL featureLevels[3] = {
+		D3D_FEATURE_LEVEL_11_1,
+		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_9_3
+	};
+
+	// check if support 4X MSAA
+	// UINT numQualityLevels;
+	// device->CheckMultisampleQualityLevels(DXGI_FORMAT_R8G8B8A8_UNORM, 4, &numQualityLevels);
+	// if (numQualityLevels <= 0)
+	//{
+	//	std::cout << "MSAA not supported." << std::endl;
+	// }
+	// numQualityLevels = 0; // MSAA turn off
+
+	DXGI_SWAP_CHAIN_DESC swapChainDesc;
+	ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
+	swapChainDesc.BufferDesc.Width = res.width;
+	swapChainDesc.BufferDesc.Height = res.height;
+	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferCount = 2; // Double-buffering
+	swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
+	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // DXGI_USAGE_SHADER_INPUT : to use input for shader
+	swapChainDesc.OutputWindow = window;
+	swapChainDesc.Windowed = TRUE;								  // windowed/full-screen mode
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH; // allow full-screen switching
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+	if (mDxData.numQualityLevel > 0)
+	{
+		swapChainDesc.SampleDesc.Count = 4; // how many multisamples
+		swapChainDesc.SampleDesc.Quality = mDxData.numQualityLevel - 1;
+	}
+	else
+	{
+		swapChainDesc.SampleDesc.Count = 1;
+		swapChainDesc.SampleDesc.Quality = 0;
+	}
+
+	if (FAILED(D3D11CreateDeviceAndSwapChain(
+			0, // Default adapter
+			driverType,
+			0, // No software device
+			createDeviceFlags,
+			featureLevels,
+			1,
+			D3D11_SDK_VERSION,
+			&swapChainDesc,					  // [in, optional]
+			mDxData.swapChain.GetAddressOf(), // [out, optional]
+			mDxData.device.GetAddressOf(),	  // [out, optional]
+			&mFeatureLevel,					  // [out, optional]
+			mDxData.context.GetAddressOf()))) // [out, optional]
+	{
+		OutputDebugString(L"D3D11CreateDeviceAndSwapChain() failed.\n");
+		return false;
+	}
+
+	if (mFeatureLevel != D3D_FEATURE_LEVEL_11_1)
+	{
+		OutputDebugString(L"D3D Feature Level 11.1 unsupported.\n");
+		return false;
+	}
+	return true;
+}
+
+bool DirectXManager::createRenderTargetView()
+{
+	mDxData.swapChain->GetBuffer(0, IID_PPV_ARGS(mDxData.backBuffer.GetAddressOf())); // 0 : index
+	if (mDxData.backBuffer)
+	{
+		HRESULT hr = mDxData.device->CreateRenderTargetView(mDxData.backBuffer.Get(), nullptr, mDxData.renderTargetView.GetAddressOf());
+
+		if (FAILED(hr))
+		{
+			OutputDebugString(L"CreateRenderTargetView() failed.\n");
+			return false;
+		}
+	}
+	else
+	{
+		OutputDebugString(L"backBuffer is nullptr.\n");
+		return false;
+	}
+	return true;
+}
+
+bool DirectXManager::createRasterizerState()
+{
+	D3D11_RASTERIZER_DESC rasterizerDesc;
+	ZeroMemory(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
+	rasterizerDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID; // D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
+	rasterizerDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_BACK;	 // D3D11_CULL_BACK
+	rasterizerDesc.FrontCounterClockwise = FALSE;
+	rasterizerDesc.DepthClipEnable = TRUE;
+
+	HRESULT hr = mDxData.device->CreateRasterizerState(&rasterizerDesc, mDxData.rasterizerState.GetAddressOf());
+	if (FAILED(hr))
+	{
+		OutputDebugString(L"CreateRasterizerState() failed.\n");
+		return false;
+	}
+	return true;
+}
+
+bool DirectXManager::createDepthStencilBuffer(_In_ const Resolution& res)
+{
+	D3D11_TEXTURE2D_DESC depthStencilBufferDesc = { 0 };
+	depthStencilBufferDesc.Width = res.width;
+	depthStencilBufferDesc.Height = res.height;
+	depthStencilBufferDesc.MipLevels = 1;
+	depthStencilBufferDesc.ArraySize = 1;
+	depthStencilBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 24 bits for depth, 8 bits for stencil
+	if (mDxData.numQualityLevel > 0)
+	{
+		depthStencilBufferDesc.SampleDesc.Count = 4;
+		depthStencilBufferDesc.SampleDesc.Quality = mDxData.numQualityLevel - 1;
+	}
+	else
+	{
+		depthStencilBufferDesc.SampleDesc.Count = 1;
+		depthStencilBufferDesc.SampleDesc.Quality = 0;
+	}
+	depthStencilBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	depthStencilBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	depthStencilBufferDesc.CPUAccessFlags = 0;
+	depthStencilBufferDesc.MiscFlags = 0;
+
+	// Create Depth Stencil Buffer
+	if (FAILED(mDxData.device->CreateTexture2D(&depthStencilBufferDesc, 0, mDxData.depthStencilBuffer.GetAddressOf())))
+	{
+		OutputDebugString(L"CreateTexture2D() failed.\n");
+		return false;
+	}
+
+	// Create Depth Stencil View
+	if (FAILED(mDxData.device->CreateDepthStencilView(mDxData.depthStencilBuffer.Get(), 0, mDxData.depthStencilView.GetAddressOf())))
+	{
+		OutputDebugString(L"CreateDepthStencilView() failed.\n");
+		return false;
+	}
+
+	// Create Depth Stencil State
+	D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
+	ZeroMemory(&depthStencilDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+	depthStencilDesc.DepthEnable = true;
+	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK::D3D11_DEPTH_WRITE_MASK_ALL;
+	depthStencilDesc.DepthFunc = D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS_EQUAL;
+
+	if (FAILED(mDxData.device->CreateDepthStencilState(&depthStencilDesc, mDxData.depthStencilState.GetAddressOf())))
+	{
+		OutputDebugString(L"CreateDepthStencilState() failed.\n");
+		return false;
+	}
+	return true;
+}
+
+bool DirectXManager::createVertexConstantBuffer()
+{
+	D3D11_BUFFER_DESC cbDesc;
+	ZeroMemory(&cbDesc, sizeof(D3D11_BUFFER_DESC));
+	cbDesc.ByteWidth = sizeof(VertexConstantData);
+	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+
+	VertexConstantData	   temp;
+	D3D11_SUBRESOURCE_DATA initData = { 0 };
+	initData.pSysMem = &temp;
+	initData.SysMemPitch = 0;
+	initData.SysMemSlicePitch = 0;
+
+	HRESULT hr = mDxData.device->CreateBuffer(&cbDesc, &initData, mDxData.vertexConstantBuffer.GetAddressOf());
+	if (FAILED(hr))
+	{
+		OutputDebugString(L"CreateConstantBuffer() failed.\n");
+		return false;
+	}
+	return true;
+}
+
+void DirectXManager::setViewport(_In_ const Resolution& res)
+{
+	ZeroMemory(&mDxData.viewport, sizeof(D3D11_VIEWPORT));
+	mDxData.viewport.TopLeftX = 0;
+	mDxData.viewport.TopLeftY = 0;
+	mDxData.viewport.Width = res.width;
+	mDxData.viewport.Height = res.height;
+	mDxData.viewport.MinDepth = 0.0f;
+	mDxData.viewport.MaxDepth = 1.0f;
+
+	mDxData.context->RSSetViewports(1, &mDxData.viewport);
 }
