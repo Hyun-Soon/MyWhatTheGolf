@@ -1,4 +1,5 @@
 #include "WindowManager.h"
+#include <iostream>
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -13,7 +14,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hwnd, msg, wParam, lParam); // Default Window Procedure
 }
 
-bool WindowManager::Initialize(_In_ const Resolution res, _Out_ HWND& window)
+bool WindowManager::Initialize(_Out_ Resolution& res, _Out_ HWND& window)
 {
 	WNDCLASSEX wc = { sizeof(WNDCLASSEX), // size of structure
 		CS_CLASSDC,						  // style of window
@@ -54,9 +55,11 @@ bool WindowManager::Initialize(_In_ const Resolution res, _Out_ HWND& window)
 		OutputDebugString(L"CreateWindow() failed.\n");
 		return false;
 	}
+	res.width = wr.right - wr.left;
+	res.height = wr.bottom - wr.top;
 
 	ShowWindow(window, SW_SHOWDEFAULT);
-	// UpdateWindow(mainWindow); // I don't know this line is necessary.
+	// UpdateWindow(mainWindow);
 	SetForegroundWindow(window);
 	return true;
 }

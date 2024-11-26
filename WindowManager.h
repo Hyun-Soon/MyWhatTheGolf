@@ -12,7 +12,7 @@ struct Resolution
 class WindowManager
 {
 public:
-	static bool Initialize(_In_ const Resolution res, _Out_ HWND& window);
+	static bool Initialize(_Out_ Resolution& res, _Out_ HWND& window);
 
 private:
 };
