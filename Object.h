@@ -1,33 +1,38 @@
 #pragma once
 
-#include <directxtk/SimpleMath.h>
 #include <vector>
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
+#include <d3d11.h>
+#include <wrl.h>
 
-struct Vertex
-{
-	DirectX::SimpleMath::Vector3 point;
-	DirectX::SimpleMath::Vector2 uv;
+#include "AssetLoader.h"
+#include "ShaderData.h"
 
-	Vertex(aiVector3D& aiV)
-		: point(aiV.x, aiV.y, aiV.z), uv(0.0f, 0.0f) {}
-};
-
-struct VertexConstantData
-{
-	DirectX::SimpleMath::Matrix model;
-	DirectX::SimpleMath::Matrix view;
-	DirectX::SimpleMath::Matrix projection;
-	DirectX::SimpleMath::Matrix invTranspose;
-};
-static_assert((sizeof(VertexConstantData) % 16) == 0, "Vertex Constant Buffer size must be 16-byte aligned.");
+using VERTEX_TYPE = Vertex;
+using INDEX_TYPE = uint32_t;
 
 class Object
 {
-public: //temp
-	std::vector<Vertex> vertices;
-	std::vector<uint32_t> indices;
-	VertexConstantData vertexConstantData;
+public:
+	Object(std::string path, std::string name);
+
+	const size_t						  GetVSize() const;
+	const size_t						  GetISize() const;
+	const VERTEX_TYPE const*			  GetVData() const;
+	const INDEX_TYPE const*				  GetIData() const;
+	VertexConstantData*					  GetPVertexConstantData();
+	Microsoft::WRL::ComPtr<ID3D11Buffer>& GetVertexBuffer();
+	Microsoft::WRL::ComPtr<ID3D11Buffer>& GetIndexBuffer();
+
+	void Transform(DirectX::SimpleMath::Vector3 vec);
+	void RotateX(float rad);
+
+private:
+	std::vector<VERTEX_TYPE> mVertices;
+	std::vector<INDEX_TYPE>	 mIndices;
+	VertexConstantData		 mVertexConstantData;
+
+	DirectX::SimpleMath::Vector3 mPosWorld = { 0.0f, 30.0f, 60.0f };
+
+	Microsoft::WRL::ComPtr<ID3D11Buffer> mVertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> mIndexBuffer;
 };

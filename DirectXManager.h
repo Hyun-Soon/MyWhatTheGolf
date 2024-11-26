@@ -1,11 +1,10 @@
 #pragma once
 
 #include <d3dcommon.h>
-#include <d3d11.h>
-#include <wrl.h>
-#include <directxmath.h>
+#include <d3dcompiler.h>
 
 #include "WindowManager.h"
+#include "Object.h"
 
 // debug
 #include <iostream>
@@ -23,13 +22,27 @@ struct DX11Data
 	Microsoft::WRL::ComPtr<ID3D11Texture2D>			depthStencilBuffer;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilView>	depthStencilView;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
+	Microsoft::WRL::ComPtr<ID3D11Buffer>			vertexConstantBuffer;
 
-	D3D11_VIEWPORT viewport;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
+	Microsoft::WRL::ComPtr<ID3D11InputLayout>  layout;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader>  pixelShader;
 
+	D3D11_VIEWPORT		viewport;
+	VertexConstantData* pVertexConstantData;
 };
 
 class DirectXManager
 {
 public:
-	static bool Initialize(_In_ const Resolution& res, _In_ const HWND& window, _Out_ DX11Data& dxData);
+	bool Initialize(_In_ const Resolution& res, _In_ const HWND& window);
+	bool CreateDeviceContextAndSwapChain();
+	bool CreateVertexBuffer(Object& obj) const;
+	bool CreateIndexBuffer(Object& obj) const;
+	bool CreateVertexShaderAndInputLayout();
+	bool CreatePixelShader();
+	bool Render(Object& obj);
+
+	// private:
+	DX11Data mDxData;
 };

@@ -42,7 +42,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -131,6 +131,7 @@
     <ClCompile Include="DirectXManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyWhatTheGolf.cpp" />
+    <ClCompile Include="Object.cpp" />
     <ClCompile Include="WindowManager.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -138,6 +139,7 @@
     <ClInclude Include="DirectXManager.h" />
     <ClInclude Include="MyWhatTheGolf.h" />
     <ClInclude Include="Object.h" />
+    <ClInclude Include="ShaderData.h" />
     <ClInclude Include="WindowManager.h" />
   </ItemGroup>
   <ItemGroup>
