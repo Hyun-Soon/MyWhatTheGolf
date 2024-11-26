@@ -1,5 +1,9 @@
 #include "WindowManager.h"
-#include <iostream>
+
+WindowManager::WindowManager(UINT w, UINT h)
+	: mResolution(w, h)
+{
+}
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -14,7 +18,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hwnd, msg, wParam, lParam); // Default Window Procedure
 }
 
-bool WindowManager::Initialize(_Out_ Resolution& res, _Out_ HWND& window)
+bool WindowManager::Initialize()
 {
 	WNDCLASSEX wc = { sizeof(WNDCLASSEX), // size of structure
 		CS_CLASSDC,						  // style of window
@@ -35,10 +39,10 @@ bool WindowManager::Initialize(_Out_ Resolution& res, _Out_ HWND& window)
 		return 1;
 	}
 
-	RECT wr = { 0, 0, res.width, res.height };
+	RECT wr = { 0, 0, mResolution.width, mResolution.height };
 	AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, false);
 
-	window = CreateWindow(wc.lpszClassName,
+	mWindow = CreateWindow(wc.lpszClassName,
 		L"MyWhatTheGolf",
 		WS_OVERLAPPEDWINDOW,
 		0,
@@ -50,16 +54,27 @@ bool WindowManager::Initialize(_Out_ Resolution& res, _Out_ HWND& window)
 		wc.hInstance,
 		NULL);
 
-	if (!window)
+	if (!mWindow)
 	{
 		OutputDebugString(L"CreateWindow() failed.\n");
 		return false;
 	}
-	res.width = wr.right - wr.left;
-	res.height = wr.bottom - wr.top;
+	mResolution.width = wr.right - wr.left;
+	mResolution.height = wr.bottom - wr.top;
 
-	ShowWindow(window, SW_SHOWDEFAULT);
+	ShowWindow(mWindow, SW_SHOWDEFAULT);
 	// UpdateWindow(mainWindow);
-	SetForegroundWindow(window);
+	SetForegroundWindow(mWindow);
+
 	return true;
+}
+
+const HWND& WindowManager::GetWindow() const
+{
+	return this->mWindow;
+}
+
+const Resolution& WindowManager::GetResolution() const
+{
+	return this->mResolution;
 }

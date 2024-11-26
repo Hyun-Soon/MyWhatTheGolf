@@ -1,13 +1,13 @@
 #include "MyWhatTheGolf.h"
 
 MyWhatTheGolf::MyWhatTheGolf(UINT width, UINT height)
-	: mResolution(width, height)
+	: mWndManager(width, height)
 {
 }
 
 bool MyWhatTheGolf::Initialize()
 {
-	return (WindowManager::Initialize(mResolution, mWindow) && mDxManager.Initialize(mResolution, mWindow));
+	return (mWndManager.Initialize() && mDxManager.Initialize(mWndManager.GetResolution(), mWndManager.GetWindow()));
 }
 
 void MyWhatTheGolf::Run()
@@ -21,10 +21,11 @@ void MyWhatTheGolf::Run()
 	float c = 0.0f;
 	float r = 0.0f;
 
-	MSG msg = { 0 };
+	MSG	 msg = { 0 };
+	HWND window = mWndManager.GetWindow();
 	while (WM_QUIT != msg.message)
 	{
-		if (PeekMessage(&msg, mWindow, 0, 0, PM_REMOVE))
+		if (PeekMessage(&msg, window, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
