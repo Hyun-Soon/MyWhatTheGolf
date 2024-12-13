@@ -4,15 +4,15 @@
 struct VertexShaderInput
 {
     float3 pos : POSITION;
-    float2 color : TEXCOORD;
+    float2 texcoord : TEXCOORD;
 };
 
 
-//struct PixelShaderInput
-//{
-//    float4 posProj : SV_POSITION;
-//    float3 color : COLOR;
-//};
+struct PixelShaderInput
+{
+    float4 posProj : SV_POSITION;
+    float2 texcoord : TEXCOORD;
+};
 
 //struct PixelShaderOutput
 //{

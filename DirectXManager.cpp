@@ -1,5 +1,8 @@
 #include "DirectXManager.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& window)
 {
 	if (!createDeviceContextAndSwapChain(res, window))
@@ -17,6 +20,9 @@ bool DirectXManager::Initialize(_In_ const Resolution& res, _In_ const HWND& win
 	if (!createVertexConstantBuffer())
 		return false;
 
+	if (!createSamplerState())
+		return false;
+
 	setViewport(res);
 
 	return true;
@@ -27,10 +33,10 @@ bool DirectXManager::CreateVertexBuffer(Object& obj) const
 	D3D11_BUFFER_DESC vbDesc;
 	ZeroMemory(&vbDesc, sizeof(D3D11_BUFFER_DESC));
 	vbDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	vbDesc.ByteWidth = static_cast<UINT>(sizeof(Vertex) * obj.GetVSize());
+	vbDesc.ByteWidth = static_cast<UINT>(sizeof(VERTEX_TYPE) * obj.GetVSize());
 	vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	vbDesc.CPUAccessFlags = 0; // 0 if no CPU access is neccesary
-	vbDesc.StructureByteStride = sizeof(Vertex);
+	vbDesc.StructureByteStride = sizeof(VERTEX_TYPE);
 
 	D3D11_SUBRESOURCE_DATA vertexBufferData = { 0 };
 	vertexBufferData.pSysMem = obj.GetVData();
@@ -69,11 +75,68 @@ bool DirectXManager::CreateIndexBuffer(Object& obj) const
 	return true;
 }
 
+bool DirectXManager::CreateTexture(Object& obj) const
+{
+	int width, height, channels;
+
+	unsigned char* img =
+		stbi_load(obj.GetCstyleTextureFilename(), &width, &height, &channels, 0);
+
+	std::cout << ":here : " << obj.GetCstyleTextureFilename() << std::endl;
+
+	assert(width * height <= INT_MAX);
+
+	// 4 channel
+	std::vector<uint8_t> image(width * height * 4);
+	for (size_t i = 0; i < width * height; i++)
+	{
+		for (size_t c = 0; c < 3; c++)
+		{
+			image[4 * i + c] = img[i * channels + c];
+		}
+		image[4 * i + 3] = 255;
+	}
+
+	D3D11_TEXTURE2D_DESC txtDesc = { 0 };
+	txtDesc.Width = width;
+	txtDesc.Height = height;
+	txtDesc.MipLevels = txtDesc.ArraySize = 1;
+	txtDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	txtDesc.SampleDesc.Count = 1;
+	txtDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	txtDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+	// Fill in the subresource data.
+	D3D11_SUBRESOURCE_DATA InitData = { 0 };
+	InitData.pSysMem = image.data();
+	InitData.SysMemPitch = txtDesc.Width * sizeof(uint8_t) * 4;
+	// InitData.SysMemSlicePitch = 0;
+
+	Microsoft::WRL::ComPtr<ID3D11Texture2D>&		  texture = obj.GetTexture();
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>& trv = obj.GetTextureResourceView();
+
+	mDxData.device->CreateTexture2D(&txtDesc, &InitData, texture.GetAddressOf());
+	mDxData.device->CreateShaderResourceView(texture.Get(), nullptr, trv.GetAddressOf());
+
+	return true;
+}
+
 bool DirectXManager::CreateVertexShaderAndInputLayout()
 {
+	/*std::vector<D3D11_INPUT_ELEMENT_DESC> inputElementDescVector = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 4 * 3, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 4 * 3 * 2, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};*/
+
 	std::vector<D3D11_INPUT_ELEMENT_DESC> inputElementDescVector = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 4 * 3, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BLENDWEIGHT", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 44, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BLENDINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0, 60, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BLENDINDICES", 1, DXGI_FORMAT_R8G8B8A8_UINT, 0, 64, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 
 	Microsoft::WRL::ComPtr<ID3DBlob> vertexBlob;
@@ -157,22 +220,58 @@ bool DirectXManager::CreatePixelShader()
 	return true;
 }
 
+ID3D11InputLayout* DirectXManager::GetLayoutPtr() const
+{
+	return this->mDxData.layout.Get();
+}
+
+ID3D11SamplerState** DirectXManager::GetAddressOfSamplerState()
+{
+	return this->mDxData.samplerState.GetAddressOf();
+}
+
+ID3D11RenderTargetView** DirectXManager::GetAddressOfRenderTargetView()
+{
+	return this->mDxData.renderTargetView.GetAddressOf();
+}
+
+ID3D11DepthStencilView* DirectXManager::GetDepthStencilView()
+{
+	return this->mDxData.depthStencilView.Get();
+}
+
+ID3D11DepthStencilState* DirectXManager::GetDepthStencilState()
+{
+	return this->mDxData.depthStencilState.Get();
+}
+
+ID3D11VertexShader* DirectXManager::GetVertexShader()
+{
+	return this->mDxData.vertexShader.Get();
+}
+
+ID3D11PixelShader* DirectXManager::GetPixelShader()
+{
+	return this->mDxData.pixelShader.Get();
+}
+
+ID3D11RasterizerState* DirectXManager::GetRasterizerState()
+{
+	return this->mDxData.rasterizerState.Get();
+}
+
+const Microsoft::WRL::ComPtr<ID3D11DeviceContext>& DirectXManager::GetContext() const
+{
+	return this->mDxData.context;
+}
+
 bool DirectXManager::Render(Object& obj)
 {
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext>& context = mDxData.context;
 	float										 clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-	context->IASetInputLayout(mDxData.layout.Get());
 	context->ClearRenderTargetView(mDxData.renderTargetView.Get(), clearColor);
 	context->ClearDepthStencilView(mDxData.depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-	context->OMSetRenderTargets(1, mDxData.renderTargetView.GetAddressOf(), mDxData.depthStencilView.Get());
-	context->OMSetDepthStencilState(mDxData.depthStencilState.Get(), 0);
-
-	context->RSSetState(mDxData.rasterizerState.Get());
-
-	context->VSSetShader(mDxData.vertexShader.Get(), 0, 0);
-	context->PSSetShader(mDxData.pixelShader.Get(), 0, 0);
 
 	mDxData.pVertexConstantData = obj.GetPVertexConstantData();
 
@@ -191,6 +290,7 @@ bool DirectXManager::Render(Object& obj)
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	context->DrawIndexed(UINT(obj.GetISize()), 0, 0);
 	mDxData.swapChain->Present(1, 0);
+
 	return true;
 }
 
@@ -296,7 +396,7 @@ bool DirectXManager::createRasterizerState()
 	D3D11_RASTERIZER_DESC rasterizerDesc;
 	ZeroMemory(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
 	rasterizerDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID; // D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
-	rasterizerDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_BACK;	 // D3D11_CULL_BACK
+	rasterizerDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_BACK;
 	rasterizerDesc.FrontCounterClockwise = FALSE;
 	rasterizerDesc.DepthClipEnable = TRUE;
 
@@ -365,7 +465,7 @@ bool DirectXManager::createVertexConstantBuffer()
 {
 	D3D11_BUFFER_DESC cbDesc;
 	ZeroMemory(&cbDesc, sizeof(D3D11_BUFFER_DESC));
-	cbDesc.ByteWidth = sizeof(VertexConstantData);
+	cbDesc.ByteWidth = sizeof(VERTEX_CONSTANT_DATA_TYPE);
 	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
 	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -382,6 +482,28 @@ bool DirectXManager::createVertexConstantBuffer()
 	if (FAILED(hr))
 	{
 		OutputDebugString(L"CreateConstantBuffer() failed.\n");
+		return false;
+	}
+	return true;
+}
+
+bool DirectXManager::createSamplerState()
+{
+	D3D11_SAMPLER_DESC sampDesc;
+	ZeroMemory(&sampDesc, sizeof(sampDesc));
+	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	sampDesc.MinLOD = 0;
+	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+	// Create the Sample State
+	HRESULT hr = mDxData.device->CreateSamplerState(&sampDesc, mDxData.samplerState.GetAddressOf());
+	if (FAILED(hr))
+	{
+		OutputDebugString(L"CreateSamplerState() failed.\n");
 		return false;
 	}
 	return true;

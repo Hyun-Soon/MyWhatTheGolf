@@ -20,6 +20,7 @@ struct DX11Data
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilView>	depthStencilView;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthStencilState;
 	Microsoft::WRL::ComPtr<ID3D11Buffer>			vertexConstantBuffer;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState>		samplerState;
 
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
 	Microsoft::WRL::ComPtr<ID3D11InputLayout>  layout;
@@ -33,11 +34,23 @@ class DirectXManager
 {
 public:
 	bool Initialize(_In_ const Resolution& res, _In_ const HWND& window);
+	bool Render(Object& obj);
+
 	bool CreateVertexBuffer(Object& obj) const;
 	bool CreateIndexBuffer(Object& obj) const;
+	bool CreateTexture(Object& obj) const;
 	bool CreateVertexShaderAndInputLayout();
 	bool CreatePixelShader();
-	bool Render(Object& obj);
+
+	ID3D11InputLayout*								   GetLayoutPtr() const;
+	ID3D11DepthStencilView*							   GetDepthStencilView();
+	ID3D11DepthStencilState*						   GetDepthStencilState();
+	ID3D11VertexShader*								   GetVertexShader();
+	ID3D11PixelShader*								   GetPixelShader();
+	ID3D11RasterizerState*							   GetRasterizerState();
+	ID3D11SamplerState**							   GetAddressOfSamplerState();
+	ID3D11RenderTargetView**						   GetAddressOfRenderTargetView();
+	const Microsoft::WRL::ComPtr<ID3D11DeviceContext>& GetContext() const;
 
 private:
 	DX11Data		  mDxData;
@@ -48,5 +61,6 @@ private:
 	bool createRasterizerState();
 	bool createDepthStencilBuffer(_In_ const Resolution& res);
 	bool createVertexConstantBuffer();
+	bool createSamplerState();
 	void setViewport(_In_ const Resolution& res);
 };

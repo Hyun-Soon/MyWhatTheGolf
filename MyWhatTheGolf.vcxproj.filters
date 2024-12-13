@@ -54,9 +54,29 @@
   <ItemGroup>
     <None Include="Common.hlsli" />
     <None Include=".clang-format" />
+    <None Include="Assets\Cube.fbx">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Assets\golf_bat_ascii.fbx">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Assets\golf_bat_ascii.fbx.meta">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Assets\golf_bat_bin.fbx">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Assets\Plane.fbx">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="VertexShader.hlsl" />
     <FxCompile Include="PixelShader.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\GradientPalette.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

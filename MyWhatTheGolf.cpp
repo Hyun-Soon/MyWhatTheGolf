@@ -12,17 +12,34 @@ bool MyWhatTheGolf::Initialize()
 
 void MyWhatTheGolf::Run()
 {
-	Object golfBat("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "golf_bat_bin.fbx");
-	mDxManager.CreateVertexBuffer(golfBat);
-	mDxManager.CreateIndexBuffer(golfBat);
+	// Object golfBat("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "golf_bat_bin.fbx", "GradientPalette.png");
+	// Object golfBat("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "AgarthanBody.fbx"); //, "nemlemtemptex.png");
+	// Object golfBat("C:/Users/Soon/Desktop/HonglabGraphics/Part4/Assets/Characters/Mixamo", "character.fbx", "Ch03_1001_Diffuse.png");
+	Object swat("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "Swat.fbx"); //, "nemlemtemptex.png");
+
+	mDxManager.CreateVertexBuffer(swat);
+	mDxManager.CreateIndexBuffer(swat);
 	mDxManager.CreateVertexShaderAndInputLayout();
 	mDxManager.CreatePixelShader();
+	mDxManager.CreateTexture(swat);
 
 	float c = 0.0f;
 	float r = 0.0f;
 
-	MSG	 msg = { 0 };
-	HWND window = mWndManager.GetWindow();
+	// edit these lines
+	{
+		mDxManager.GetContext()->IASetInputLayout(mDxManager.GetLayoutPtr());
+		mDxManager.GetContext()->PSSetSamplers(0, 1, mDxManager.GetAddressOfSamplerState());
+		mDxManager.GetContext()->PSSetShaderResources(0, 1, swat.GetTextureResourceView().GetAddressOf());
+		mDxManager.GetContext()->OMSetRenderTargets(1, mDxManager.GetAddressOfRenderTargetView(), mDxManager.GetDepthStencilView());
+		mDxManager.GetContext()->OMSetDepthStencilState(mDxManager.GetDepthStencilState(), 0);
+		mDxManager.GetContext()->VSSetShader(mDxManager.GetVertexShader(), 0, 0);
+		mDxManager.GetContext()->PSSetShader(mDxManager.GetPixelShader(), 0, 0);
+		mDxManager.GetContext()->RSSetState(mDxManager.GetRasterizerState());
+	}
+
+	const HWND window = mWndManager.GetWindow();
+	MSG		   msg = { 0 };
 	while (WM_QUIT != msg.message)
 	{
 		if (PeekMessage(&msg, window, 0, 0, PM_REMOVE))
@@ -33,19 +50,10 @@ void MyWhatTheGolf::Run()
 		else
 		{
 			// Render
-			c += 0.01f;
+			r += 2.0f;
+			swat.RotateY(DirectX::XMConvertToRadians(r));
 
-			if (c < 5.0f)
-				golfBat.Transform({ 0.0f, 0.1f * sin(4.0f * c), 0.0f });
-			else if (c <= 5.5f)
-			{
-				r -= 2.0f;
-				golfBat.RotateX(DirectX::XMConvertToRadians(r));
-			}
-			else
-			{
-			}
-			mDxManager.Render(golfBat);
+			mDxManager.Render(swat);
 		}
 	}
 }

@@ -5,7 +5,10 @@
     
 //};
 
-float4 main(float4 input : SV_Position) : SV_Target
+Texture2D g_texture0 : register(t0);
+SamplerState g_sampler : register(s0);
+
+float4 main(PixelShaderInput input) : SV_Target
 {
-    return float4(1.0, 1.0, 1.0, 1.0);
+    return g_texture0.Sample(g_sampler, input.texcoord);
 }
