@@ -82,8 +82,6 @@ bool DirectXManager::CreateTexture(Object& obj) const
 	unsigned char* img =
 		stbi_load(obj.GetCstyleTextureFilename(), &width, &height, &channels, 0);
 
-	std::cout << ":here : " << obj.GetCstyleTextureFilename() << std::endl;
-
 	assert(width * height <= INT_MAX);
 
 	// 4 channel
