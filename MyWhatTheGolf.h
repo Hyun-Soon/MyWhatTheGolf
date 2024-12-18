@@ -15,6 +15,9 @@ public:
 	void Run();
 
 private:
+	void update();
+	void render();
+
 	bool createDeviceContextAndSwapChain();
 	bool createRenderTargetView();
 	bool createRasterizerState();
