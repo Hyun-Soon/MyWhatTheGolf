@@ -268,8 +268,6 @@ bool MyWhatTheGolf::createDepthStencilBuffer()
 
 void MyWhatTheGolf::Run()
 {
-	update();
-	render();
 
 	// Object golfBat("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "golf_bat_bin.fbx", "GradientPalette.png");
 	// Object golfBat("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "AgarthanBody.fbx"); //, "nemlemtemptex.png");
@@ -308,6 +306,8 @@ void MyWhatTheGolf::Run()
 		}
 		else
 		{
+			update();
+			render();
 			//// Render
 			// r += 2.0f;
 			// swat.RotateY(DirectX::XMConvertToRadians(r));
@@ -315,6 +315,14 @@ void MyWhatTheGolf::Run()
 			// mDxManager.Render(swat);
 		}
 	}
+}
+
+void MyWhatTheGolf::update()
+{
+}
+
+void MyWhatTheGolf::render()
+{
 }
 
 // const HWND& MyWhatTheGolf::GetWindow() const
