@@ -5,27 +5,56 @@
 #include <filesystem>
 #include <fstream>
 
-// debug
-#include <iostream>
-
 #include "ShaderData.h"
-
-// auto GeometryGenerator::ReadAnimationFromFile(string basePath, string filename, bool revertNormals)
-//	-> tuple<vector<MeshData>, AnimationData>
-//{
-//	ModelLoader modelLoader;
-//	modelLoader.Load(basePath, filename, revertNormals);
-//
-//	GeometryGenerator::Normalize(Vector3(0.0f), 1.0f, modelLoader.m_meshes,
-//		modelLoader.m_aniData);
-//
-//	return { modelLoader.m_meshes, modelLoader.m_aniData };
-// }
 
 class AssetLoader
 {
 public:
-	std::tuple<std::vector<MeshData>, AnimationData> Load(std::string basePath, std::string filename)
+	std::vector<MeshData> LoadModelWithoutAnimation(std::string basePath, std::string filename)
+	{
+		mBasePath = basePath;
+		Assimp::Importer importer;
+
+		const aiScene* pScene = importer.ReadFile(
+			basePath + filename,
+			aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
+		// ReadFile()에서 경우에 따라서 여러가지 옵션들 설정 가능
+		// aiProcess_JoinIdenticalVertices | aiProcess_PopulateArmatureData |
+		// aiProcess_SplitByBoneCount |
+		// aiProcess_Debone); // aiProcess_LimitBoneWeights
+
+		if (pScene)
+		{
+
+			// 1. 모든 메쉬에 대해서 버텍스에 영향을 주는 뼈들의 목록을 만든다.
+			FindDeformingBones(pScene);
+
+			// 2. 트리 구조를 따라 업데이트 순서대로 뼈들의 인덱스를 결정한다.
+			int counter = 0;
+			UpdateBoneIDs(pScene->mRootNode, &counter);
+
+			// 3. 업데이트 순서대로 뼈 이름 저장 (boneIdToName)
+			mAniData.boneIdToName.resize(mAniData.boneNameToId.size());
+			for (auto& i : mAniData.boneNameToId)
+				mAniData.boneIdToName[i.second] = i.first;
+
+			mAniData.boneParents.resize(mAniData.boneNameToId.size(), -1);
+
+			DirectX::SimpleMath::Matrix tr; // Initial transformation
+			ProcessNode(pScene->mRootNode, pScene, tr);
+		}
+		else
+		{
+			std::cout << "Failed to read file: " << basePath + filename
+					  << std::endl;
+			auto errorDescription = importer.GetErrorString();
+			std::cout << "Assimp error: " << errorDescription << std::endl;
+		}
+
+		return mMeshDatas;
+	}
+
+	std::tuple<std::vector<MeshData>, AnimationData> LoadModelWithAnimation(std::string basePath, std::string filename)
 	{
 		mBasePath = basePath;
 		Assimp::Importer importer;
@@ -94,7 +123,7 @@ public:
 			std::cout << "Assimp error: " << errorDescription << std::endl;
 		}
 
-		return { mMeshes, mAniData };
+		return { mMeshDatas, mAniData };
 	}
 
 	void FindDeformingBones(const aiScene* scene)
@@ -170,7 +199,7 @@ public:
 			{
 				v.position = DirectX::SimpleMath::Vector3::Transform(v.position, m);
 			}
-			mMeshes.push_back(newMesh);
+			mMeshDatas.push_back(newMesh);
 		}
 
 		for (UINT i = 0; i < node->mNumChildren; i++)
@@ -414,5 +443,5 @@ public:
 private:
 	std::string			  mBasePath;
 	AnimationData		  mAniData;
-	std::vector<MeshData> mMeshes;
+	std::vector<MeshData> mMeshDatas;
 };

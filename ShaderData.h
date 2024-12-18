@@ -79,21 +79,15 @@ struct AnimationData
 	DirectX::SimpleMath::Vector3			 prevPos = DirectX::SimpleMath::Vector3(0.0f);
 };
 
-using VERTEX_TYPE = SkinnedVertex;
+using VERTEX_TYPE = Vertex;
+using SKINNED_VERTEX_TYPE = SkinnedVertex;
 using INDEX_TYPE = uint32_t;
 using VERTEX_CONSTANT_DATA_TYPE = VertexConstantData;
 
 struct MeshData
 {
-	// std::vector<Vertex>		   vertices;
-	std::vector<VERTEX_TYPE> skinnedVertices;
-	std::vector<INDEX_TYPE>	 indices;
-	std::string				 albedoTextureFilename;
-	// std::string				 emissiveTextureFilename;
-	// std::string				 normalTextureFilename;
-	// std::string				 heightTextureFilename;
-	// std::string				 aoTextureFilename; // Ambient Occlusion
-	// std::string				 metallicTextureFilename;
-	// std::string				 roughnessTextureFilename;
-	// std::string				 opacityTextureFilename;
+	std::vector<VERTEX_TYPE>		 vertices;
+	std::vector<SKINNED_VERTEX_TYPE> skinnedVertices;
+	std::vector<INDEX_TYPE>			 indices;
+	std::string						 albedoTextureFilename;
 };

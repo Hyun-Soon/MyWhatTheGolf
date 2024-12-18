@@ -1,44 +1,304 @@
 #include "MyWhatTheGolf.h"
 
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	// switch (msg)
+	//{
+	//	case WM_SIZE:
+	//		break;
+	//	case WM_LBUTTONDOWN:
+	//		std::cout << "LBUTTONDOWN" << std::endl;
+	//		break;
+	// }
+	return DefWindowProc(hwnd, msg, wParam, lParam); // Default Window Procedure
+}
+
 MyWhatTheGolf::MyWhatTheGolf(UINT width, UINT height)
-	: mWndManager(width, height)
+	: mResolution(width, height)
 {
 }
 
 bool MyWhatTheGolf::Initialize()
 {
-	return (mWndManager.Initialize() && mDxManager.Initialize(mWndManager.GetResolution(), mWndManager.GetWindow()));
+	return (InitializeWindow() || InitializeDirectX());
+}
+
+bool MyWhatTheGolf::InitializeWindow()
+{
+	WNDCLASSEX wc = { sizeof(WNDCLASSEX), // size of structure
+		CS_CLASSDC,						  // style of window
+		WndProc,						  // points to window procedure
+		0L,
+		0L,
+		GetModuleHandle(NULL), // because used main function, not WinMain
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		L"MyWhatTheGolf", // name of window class
+		NULL };
+
+	if (!RegisterClassEx(&wc))
+	{
+		OutputDebugString(L"RegisterClassEx() failed.\n");
+		return 1;
+	}
+
+	RECT wr = { 0, 0, mResolution.width, mResolution.height };
+	AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, false);
+
+	mWindow = CreateWindow(wc.lpszClassName,
+		L"MyWhatTheGolf",
+		WS_OVERLAPPEDWINDOW,
+		0,
+		0,
+		wr.right - wr.left,
+		wr.bottom - wr.top,
+		NULL,
+		NULL,
+		wc.hInstance,
+		NULL);
+
+	if (!mWindow)
+	{
+		OutputDebugString(L"CreateWindow() failed.\n");
+		return false;
+	}
+	mResolution.width = wr.right - wr.left;
+	mResolution.height = wr.bottom - wr.top;
+
+	ShowWindow(mWindow, SW_SHOWDEFAULT);
+	UpdateWindow(mWindow);
+	SetForegroundWindow(mWindow);
+
+	return true;
+}
+
+bool MyWhatTheGolf::InitializeDirectX()
+{
+	if (!createDeviceContextAndSwapChain())
+		return false;
+
+	if (!createRenderTargetView())
+		return false;
+
+	if (!createRasterizerState())
+		return false;
+
+	if (!createDepthStencilBuffer())
+		return false;
+
+	// if (!createVertexConstantBuffer())
+	//	return false;
+
+	// if (!createSamplerState())
+	//	return false;
+
+	// setViewport(res);
+
+	return true;
+}
+
+bool MyWhatTheGolf::createDeviceContextAndSwapChain()
+{
+	const D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_HARDWARE;
+
+	UINT createDeviceFlags = 0;
+
+#if defined(DEBUG) || defined(_DEBUG) // not executed in release mode
+	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+	const D3D_FEATURE_LEVEL featureLevels[3] = {
+		D3D_FEATURE_LEVEL_11_1,
+		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_9_3
+	};
+
+	// check if support 4X MSAA
+	// UINT numQualityLevels;
+	// device->CheckMultisampleQualityLevels(DXGI_FORMAT_R8G8B8A8_UNORM, 4, &numQualityLevels);
+	// if (numQualityLevels <= 0)
+	//{
+	//	std::cout << "MSAA not supported." << std::endl;
+	// }
+	// numQualityLevels = 0; // MSAA turn off
+
+	DXGI_SWAP_CHAIN_DESC swapChainDesc;
+	ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
+	swapChainDesc.BufferDesc.Width = mResolution.width;
+	swapChainDesc.BufferDesc.Height = mResolution.height;
+	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferCount = 2; // Double-buffering
+	swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
+	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // DXGI_USAGE_SHADER_INPUT : to use input for shader
+	swapChainDesc.OutputWindow = mWindow;
+	swapChainDesc.Windowed = TRUE;								  // windowed/full-screen mode
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH; // allow full-screen switching
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+	if (mNumQualityLevel > 0)
+	{
+		swapChainDesc.SampleDesc.Count = 4; // how many multisamples
+		swapChainDesc.SampleDesc.Quality = mNumQualityLevel - 1;
+	}
+	else
+	{
+		swapChainDesc.SampleDesc.Count = 1;
+		swapChainDesc.SampleDesc.Quality = 0;
+	}
+
+	if (FAILED(D3D11CreateDeviceAndSwapChain(
+			0, // Default adapter
+			driverType,
+			0, // No software device
+			createDeviceFlags,
+			featureLevels,
+			1,
+			D3D11_SDK_VERSION,
+			&swapChainDesc,			   // [in, optional]
+			mSwapChain.GetAddressOf(), // [out, optional]
+			mDevice.GetAddressOf(),	   // [out, optional]
+			&mFeatureLevel,			   // [out, optional]
+			mContext.GetAddressOf()))) // [out, optional]
+	{
+		OutputDebugString(L"D3D11CreateDeviceAndSwapChain() failed.\n");
+		return false;
+	}
+
+	if (mFeatureLevel != D3D_FEATURE_LEVEL_11_1)
+	{
+		OutputDebugString(L"D3D Feature Level 11.1 unsupported.\n");
+		return false;
+	}
+	return true;
+}
+
+bool MyWhatTheGolf::createRenderTargetView()
+{
+	mSwapChain->GetBuffer(0, IID_PPV_ARGS(mBackBuffer.GetAddressOf())); // 0 : index
+	if (mBackBuffer)
+	{
+		HRESULT hr = mDevice->CreateRenderTargetView(mBackBuffer.Get(), nullptr, mRenderTargetView.GetAddressOf());
+
+		if (FAILED(hr))
+		{
+			OutputDebugString(L"CreateRenderTargetView() failed.\n");
+			return false;
+		}
+	}
+	else
+	{
+		OutputDebugString(L"backBuffer is nullptr.\n");
+		return false;
+	}
+	return true;
+}
+
+bool MyWhatTheGolf::createRasterizerState()
+{
+	D3D11_RASTERIZER_DESC rasterizerDesc;
+	ZeroMemory(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
+	rasterizerDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID; // D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
+	rasterizerDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_BACK;
+	rasterizerDesc.FrontCounterClockwise = FALSE;
+	rasterizerDesc.DepthClipEnable = TRUE;
+
+	HRESULT hr = mDevice->CreateRasterizerState(&rasterizerDesc, mRasterizerState.GetAddressOf());
+	if (FAILED(hr))
+	{
+		OutputDebugString(L"CreateRasterizerState() failed.\n");
+		return false;
+	}
+	return true;
+}
+
+bool MyWhatTheGolf::createDepthStencilBuffer()
+{
+	D3D11_TEXTURE2D_DESC depthStencilBufferDesc = { 0 };
+	depthStencilBufferDesc.Width = mResolution.width;
+	depthStencilBufferDesc.Height = mResolution.height;
+	depthStencilBufferDesc.MipLevels = 1;
+	depthStencilBufferDesc.ArraySize = 1;
+	depthStencilBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 24 bits for depth, 8 bits for stencil
+	if (mNumQualityLevel > 0)
+	{
+		depthStencilBufferDesc.SampleDesc.Count = 4;
+		depthStencilBufferDesc.SampleDesc.Quality = mNumQualityLevel - 1;
+	}
+	else
+	{
+		depthStencilBufferDesc.SampleDesc.Count = 1;
+		depthStencilBufferDesc.SampleDesc.Quality = 0;
+	}
+	depthStencilBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	depthStencilBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	depthStencilBufferDesc.CPUAccessFlags = 0;
+	depthStencilBufferDesc.MiscFlags = 0;
+
+	// Create Depth Stencil Buffer
+	if (FAILED(mDevice->CreateTexture2D(&depthStencilBufferDesc, 0, mDepthStencilBuffer.GetAddressOf())))
+	{
+		OutputDebugString(L"CreateTexture2D() failed.\n");
+		return false;
+	}
+
+	// Create Depth Stencil View
+	if (FAILED(mDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), 0, mDepthStencilView.GetAddressOf())))
+	{
+		OutputDebugString(L"CreateDepthStencilView() failed.\n");
+		return false;
+	}
+
+	// Create Depth Stencil State
+	D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
+	ZeroMemory(&depthStencilDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+	depthStencilDesc.DepthEnable = true;
+	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK::D3D11_DEPTH_WRITE_MASK_ALL;
+	depthStencilDesc.DepthFunc = D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS_EQUAL;
+
+	if (FAILED(mDevice->CreateDepthStencilState(&depthStencilDesc, mDepthStencilState.GetAddressOf())))
+	{
+		OutputDebugString(L"CreateDepthStencilState() failed.\n");
+		return false;
+	}
+	return true;
 }
 
 void MyWhatTheGolf::Run()
 {
+	/*Initialize();
+	Update();
+	Render();*/
+
 	// Object golfBat("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "golf_bat_bin.fbx", "GradientPalette.png");
 	// Object golfBat("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "AgarthanBody.fbx"); //, "nemlemtemptex.png");
 	// Object golfBat("C:/Users/Soon/Desktop/HonglabGraphics/Part4/Assets/Characters/Mixamo", "character.fbx", "Ch03_1001_Diffuse.png");
-	Object swat("C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "Swat.fbx"); //, "nemlemtemptex.png");
+	Model swat(mDevice, mContext, "C:/Users/Soon/Desktop/MyWhatTheGolf/Assets/", "Swat.fbx"); //, "nemlemtemptex.png");
 
-	mDxManager.CreateVertexBuffer(swat);
-	mDxManager.CreateIndexBuffer(swat);
-	mDxManager.CreateVertexShaderAndInputLayout();
-	mDxManager.CreatePixelShader();
-	mDxManager.CreateTexture(swat);
+	// mDxManager.CreateVertexBuffer(swat);
+	// mDxManager.CreateIndexBuffer(swat);
+	// mDxManager.CreateVertexShaderAndInputLayout();
+	// mDxManager.CreatePixelShader();
+	// mDxManager.CreateTexture(swat);
 
-	float c = 0.0f;
-	float r = 0.0f;
+	// float c = 0.0f;
+	// float r = 0.0f;
 
-	// edit these lines
-	{
-		mDxManager.GetContext()->IASetInputLayout(mDxManager.GetLayoutPtr());
-		mDxManager.GetContext()->PSSetSamplers(0, 1, mDxManager.GetAddressOfSamplerState());
-		mDxManager.GetContext()->PSSetShaderResources(0, 1, swat.GetTextureResourceView().GetAddressOf());
-		mDxManager.GetContext()->OMSetRenderTargets(1, mDxManager.GetAddressOfRenderTargetView(), mDxManager.GetDepthStencilView());
-		mDxManager.GetContext()->OMSetDepthStencilState(mDxManager.GetDepthStencilState(), 0);
-		mDxManager.GetContext()->VSSetShader(mDxManager.GetVertexShader(), 0, 0);
-		mDxManager.GetContext()->PSSetShader(mDxManager.GetPixelShader(), 0, 0);
-		mDxManager.GetContext()->RSSetState(mDxManager.GetRasterizerState());
-	}
+	//// edit these lines
+	//{
+	//	mDxManager.GetContext()->IASetInputLayout(mDxManager.GetLayoutPtr());
+	//	mDxManager.GetContext()->PSSetSamplers(0, 1, mDxManager.GetAddressOfSamplerState());
+	//	mDxManager.GetContext()->PSSetShaderResources(0, 1, swat.GetTextureResourceView().GetAddressOf());
+	//	mDxManager.GetContext()->OMSetRenderTargets(1, mDxManager.GetAddressOfRenderTargetView(), mDxManager.GetDepthStencilView());
+	//	mDxManager.GetContext()->OMSetDepthStencilState(mDxManager.GetDepthStencilState(), 0);
+	//	mDxManager.GetContext()->VSSetShader(mDxManager.GetVertexShader(), 0, 0);
+	//	mDxManager.GetContext()->PSSetShader(mDxManager.GetPixelShader(), 0, 0);
+	//	mDxManager.GetContext()->RSSetState(mDxManager.GetRasterizerState());
+	//}
 
-	const HWND window = mWndManager.GetWindow();
+	const HWND window = mWindow;
 	MSG		   msg = { 0 };
 	while (WM_QUIT != msg.message)
 	{
@@ -49,11 +309,11 @@ void MyWhatTheGolf::Run()
 		}
 		else
 		{
-			// Render
-			r += 2.0f;
-			swat.RotateY(DirectX::XMConvertToRadians(r));
+			//// Render
+			// r += 2.0f;
+			// swat.RotateY(DirectX::XMConvertToRadians(r));
 
-			mDxManager.Render(swat);
+			// mDxManager.Render(swat);
 		}
 	}
 }

@@ -129,18 +129,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="D3D11Utils.cpp" />
     <ClCompile Include="DirectXManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyWhatTheGolf.cpp" />
-    <ClCompile Include="Object.cpp" />
+    <ClCompile Include="Model.cpp" />
     <ClCompile Include="WindowManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AssetLoader.h" />
+    <ClInclude Include="ConstantBuffer.h" />
+    <ClInclude Include="D3D11Utils.h" />
     <ClInclude Include="DirectXManager.h" />
+    <ClInclude Include="Mesh.h" />
     <ClInclude Include="MyWhatTheGolf.h" />
-    <ClInclude Include="Object.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="ShaderData.h" />
+    <ClInclude Include="SkinnedMeshObject.h" />
     <ClInclude Include="WindowManager.h" />
   </ItemGroup>
   <ItemGroup>
